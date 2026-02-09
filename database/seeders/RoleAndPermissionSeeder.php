@@ -21,13 +21,21 @@ class RoleAndPermissionSeeder extends Seeder
             'manage vazhipadu',
             'create booking',
             'cancel booking',
+            'view bookings',
+            'manage asset bookings',
             'manage donations',
             'manage inventory',
+            'manage products',
             'manage assets',
             'view reports',
+            'view financial reports',
             'manage accounting',
+            'manage accounts',
             'manage staff',
+            'manage users',
+            'manage roles',
             'audit records',
+            'manage settings',
         ];
 
         foreach ($permissions as $permission) {
@@ -42,22 +50,36 @@ class RoleAndPermissionSeeder extends Seeder
         $templeAdmin->givePermissionTo(\Spatie\Permission\Models\Permission::all());
 
         $counterStaff = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Counter Staff']);
-        $counterStaff->givePermissionTo(['create booking', 'cancel booking', 'manage donations']);
+        $counterStaff->givePermissionTo([
+            'create booking',
+            'cancel booking',
+            'view bookings',
+            'manage donations',
+            'manage vazhipadu'
+        ]);
 
         $accountant = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Accountant']);
-        $accountant->givePermissionTo(['view reports', 'manage accounting', 'manage inventory']);
+        $accountant->givePermissionTo([
+            'view reports',
+            'view financial reports',
+            'manage accounting',
+            'manage accounts',
+            'manage inventory',
+            'manage products'
+        ]);
 
         $priest = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Priest']);
-        $priest->givePermissionTo(['manage vazhipadu']);
+        $priest->givePermissionTo(['manage vazhipadu', 'view bookings', 'manage asset bookings']);
 
         $auditor = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'Auditor']);
-        $auditor->givePermissionTo(['view reports', 'audit records']);
+        $auditor->givePermissionTo(['view reports', 'view financial reports', 'audit records']);
 
         // Create a default Super Admin user
         $admin = \App\Models\User::firstOrCreate(
             ['email' => 'admin@temple.com'],
             [
                 'name' => 'Super Admin',
+                'temple_id' => 1,
                 'password' => bcrypt('password'),
             ]
         );

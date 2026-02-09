@@ -270,6 +270,6 @@ export default function Index({ auth, staff_list }: PageProps & { staff_list: St
                     </form>
                 </div>
             )}
-        </div>
+        </AuthenticatedLayout>
     );
 }

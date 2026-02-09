@@ -17,6 +17,7 @@ import {
     Calendar,
     Receipt
 } from 'lucide-react';
+import ExportToolbar from '@/Components/ExportToolbar';
 import { useState } from 'react';
 
 interface Transaction {
@@ -67,6 +68,7 @@ export default function Index({ auth, transactions, summary }: PageProps & { tra
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1 italic">Vazhipadu & Operational Ledger</p>
                     </div>
                     <div className="flex gap-4">
+                        <ExportToolbar reportName="ledger" />
                         <Link
                             href={route('ledgers.report')}
                             className="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
@@ -202,8 +204,8 @@ export default function Index({ auth, transactions, summary }: PageProps & { tra
                             href={link.url}
                             dangerouslySetInnerHTML={{ __html: link.label }}
                             className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${link.active
-                                    ? 'bg-slate-900 text-white shadow-xl px-6'
-                                    : 'bg-white text-slate-400 hover:text-slate-900 border border-slate-100'
+                                ? 'bg-slate-900 text-white shadow-xl px-6'
+                                : 'bg-white text-slate-400 hover:text-slate-900 border border-slate-100'
                                 } ${!link.url ? 'opacity-30 pointer-events-none' : ''}`}
                         />
                     ))}

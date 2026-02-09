@@ -41,6 +41,9 @@ use App\Http\Controllers\TalukController;
 use App\Http\Controllers\PanchayatController;
 use App\Http\Controllers\DevaswomController;
 use App\Http\Controllers\ReceiptDataController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\ExportController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -55,48 +58,93 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
-Route::get('counter', [CounterController::class, 'index'])->name('counter.index');
-Route::get('api/devotees/search', [CounterController::class, 'searchDevotees'])->name('api.devotees.search');
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-Route::middleware('auth')->group(function () {
-    Route::resource('vazhipadu-categories', VazhipaduCategoryController::class);
-    Route::resource('vazhipadu-rates', VazhipaduRateController::class);
-    Route::resource('fiscal-years', FiscalYearController::class);
-    Route::resource('accounts', AccountController::class);
+    // Booking & Counter (Counter Staff / Admin)
+    Route::middleware('can:create booking')->group(function () {
+        Route::get('counter', [CounterController::class, 'index'])->name('counter.index');
+        Route::get('api/devotees/search', [CounterController::class, 'searchDevotees'])->name('api.devotees.search');
+        Route::resource('bookings', BookingController::class);
+        Route::resource('devotees', DevoteeController::class);
+        Route::get('print/booking/{booking}', [PrintController::class, 'printBooking'])->name('print.booking');
+        Route::get('api/receipt-data/booking/{booking}', [ReceiptDataController::class, 'getBookingData'])->name('api.receipt-data.booking');
+    });
 
-    Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
-    Route::get('reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
-    Route::get('reports/consolidated-collection', [ReportController::class, 'consolidatedCollection'])->name('reports.consolidated-collection');
+    // Financials & Accounting (Accountant / Admin)
+    Route::middleware('can:manage accounting')->group(function () {
+        Route::resource('accounts', AccountController::class);
+        Route::resource('ledgers', LedgerController::class);
+        Route::get('financial-reports', [LedgerController::class, 'report'])->name('ledgers.report');
 
-    Route::resource('receipt-templates', ReceiptTemplateController::class);
+        Route::middleware('can:view financial reports')->group(function () {
+            Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
+            Route::get('reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
+            Route::get('reports/consolidated-collection', [ReportController::class, 'consolidatedCollection'])->name('reports.consolidated-collection');
+        });
+    });
+
+    // Donations
+    Route::middleware('can:manage donations')->group(function () {
+        Route::resource('donations', DonationController::class);
+        Route::get('print/donation/{donation}', [PrintController::class, 'printDonation'])->name('print.donation');
+        Route::get('api/receipt-data/donation/{donation}', [ReceiptDataController::class, 'getDonationData'])->name('api.receipt-data.donation');
+    });
+
+    // Inventory
+    Route::middleware('can:manage inventory')->group(function () {
+        Route::resource('inventory', InventoryController::class);
+        Route::post('inventory/{item}/stock', [InventoryController::class, 'updateStock'])->name('inventory.stock');
+        Route::post('inventory/{item}/purchase', [InventoryController::class, 'purchase'])->name('inventory.purchase');
+    });
+
+    // Assets
+    Route::middleware('can:manage assets')->group(function () {
+        Route::resource('assets', AssetController::class);
+        Route::resource('asset-bookings', AssetBookingController::class);
+        Route::post('asset-bookings/{booking}/status', [AssetBookingController::class, 'updateStatus'])->name('asset-bookings.status');
+    });
+
+    // Staff & Users
+    Route::middleware('can:manage staff')->group(function () {
+        Route::resource('staff', StaffController::class);
+    });
+
+    Route::middleware('can:manage users')->group(function () {
+        Route::resource('users', UserController::class);
+    });
+
+    // Master Setup (Admin only)
+    Route::middleware('can:manage temple master')->group(function () {
+        Route::resource('temples', TempleController::class);
+        Route::resource('deities', DeityController::class);
+        Route::resource('devaswoms', DevaswomController::class);
+        Route::resource('districts', DistrictController::class);
+        Route::resource('taluks', TalukController::class);
+        Route::resource('panchayats', PanchayatController::class);
+        Route::resource('fiscal-years', FiscalYearController::class);
+        Route::get('temple-settings', [TempleController::class, 'index'])->name('temple.settings');
+
+        Route::middleware('can:audit records')->group(function () {
+            Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+        });
+    });
+
+    // Vazhipadu Master Setup
+    Route::middleware('can:manage vazhipadu')->group(function () {
+        Route::resource('vazhipadus', VazhipaduController::class);
+        Route::resource('vazhipadu-categories', VazhipaduCategoryController::class);
+        Route::resource('vazhipadu-rates', VazhipaduRateController::class);
+        Route::resource('receipt-templates', ReceiptTemplateController::class);
+    });
+
+    // Exports
+    Route::get('exports/{type}/{report}', [ExportController::class, 'generate'])->name('exports.generate');
+
+    // Public / Shared Verified Routes
     Route::get('verify/receipt', function (\Illuminate\Http\Request $request) {
         return "Receipt Verified: " . $request->get('id');
     })->name('verify.receipt')->middleware('signed');
-
-    Route::resource('vazhipadus', VazhipaduController::class);
-    Route::resource('bookings', BookingController::class);
-    Route::resource('devotees', DevoteeController::class);
-    Route::resource('deities', DeityController::class);
-    Route::resource('temples', TempleController::class);
-    Route::resource('devaswoms', DevaswomController::class);
-    Route::resource('districts', DistrictController::class);
-    Route::resource('taluks', TalukController::class);
-    Route::resource('panchayats', PanchayatController::class);
-
-    // Alias for legacy compatibility if needed
-    Route::get('temple-settings', [TempleController::class, 'index'])->name('temple.settings');
-    Route::resource('donations', DonationController::class);
-    Route::resource('assets', AssetController::class);
-    Route::resource('inventory', InventoryController::class);
-    Route::post('inventory/{item}/stock', [InventoryController::class, 'updateStock'])->name('inventory.stock');
-    Route::resource('ledgers', LedgerController::class);
-    Route::get('financial-reports', [LedgerController::class, 'report'])->name('ledgers.report');
-    Route::resource('staff', StaffController::class);
-    Route::get('print/donation/{donation}', [PrintController::class, 'printDonation'])->name('print.donation');
-    Route::get('print/booking/{booking}', [PrintController::class, 'printBooking'])->name('print.booking');
-
-    Route::get('api/receipt-data/booking/{booking}', [ReceiptDataController::class, 'getBookingData'])->name('api.receipt-data.booking');
-    Route::get('api/receipt-data/donation/{donation}', [ReceiptDataController::class, 'getDonationData'])->name('api.receipt-data.donation');
 });
 
 Route::middleware('auth')->group(function () {

@@ -69,4 +69,59 @@ class InventoryController extends Controller
 
         return redirect()->back()->with('success', 'Stock updated successfully.');
     }
+
+    public function purchase(Request $request, InventoryItem $item)
+    {
+        $validated = $request->validate([
+            'quantity' => 'required|numeric|min:0.01',
+            'unit_price' => 'required|numeric|min:0',
+            'total_amount' => 'required|numeric|min:0',
+            'payment_mode' => 'required|string',
+            'account_id' => 'required|exists:accounts,id', // Source of funds (Cash/Bank)
+            'expense_account_id' => 'required|exists:accounts,id', // Ledger head (Ritual/Admin expense)
+            'remarks' => 'nullable|string',
+        ]);
+
+        \DB::transaction(function () use ($item, $validated) {
+            // 1. Update Inventory Stock
+            $item->increment('current_stock', $validated['quantity']);
+
+            // 2. Create Stock Log
+            StockLog::create([
+                'inventory_item_id' => $item->id,
+                'type' => 'In',
+                'quantity' => $validated['quantity'],
+                'remarks' => 'Purchase: ' . ($validated['remarks'] ?? 'Bulk stock procurement'),
+                'date' => now(),
+            ]);
+
+            // 3. Create Ledger Entry (Debit Expense)
+            \App\Models\Ledger::create([
+                'account_id' => $validated['expense_account_id'],
+                'type' => 'Debit',
+                'category' => 'Purchase',
+                'amount' => $validated['total_amount'],
+                'transaction_date' => now(),
+                'payment_mode' => $validated['payment_mode'],
+                'description' => "Purchase of {$item->name} ({$validated['quantity']} {$item->unit})",
+                'reference_type' => 'InventoryItem',
+                'reference_id' => $item->id,
+            ]);
+
+            // 4. Create Ledger Entry (Credit Asset/Payment Source)
+            \App\Models\Ledger::create([
+                'account_id' => $validated['account_id'],
+                'type' => 'Credit',
+                'category' => 'Purchase',
+                'amount' => $validated['total_amount'],
+                'transaction_date' => now(),
+                'payment_mode' => $validated['payment_mode'],
+                'description' => "Payment for {$item->name} purchase",
+                'reference_type' => 'InventoryItem',
+                'reference_id' => $item->id,
+            ]);
+        });
+
+        return redirect()->back()->with('success', 'Purchase recorded and stock updated.');
+    }
 }

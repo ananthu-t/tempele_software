@@ -13,9 +13,11 @@ import {
     SearchX,
     Sparkles,
     ClipboardList,
-    Gauge
+    Gauge,
+    ShoppingCart,
+    Banknote
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface InventoryItem {
     id: number;
@@ -53,7 +55,25 @@ export default function Index({ auth, items, recent_logs }: PageProps & { items:
     });
 
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+    const [purchaseItem, setPurchaseItem] = useState<InventoryItem | null>(null);
     const [showAddModal, setShowAddModal] = useState(false);
+
+    const { data: purchaseData, setData: setPurchaseData, post: postPurchase, processing: purchaseProcessing, reset: resetPurchase } = useForm({
+        quantity: '',
+        unit_price: '',
+        total_amount: 0,
+        payment_mode: 'Cash',
+        account_id: '1', // Default to Cash
+        expense_account_id: '5', // Default to Ritual Expenses
+        remarks: '',
+    });
+
+    // Auto-calculate total amount
+    useEffect(() => {
+        const qty = parseFloat(purchaseData.quantity) || 0;
+        const price = parseFloat(purchaseData.unit_price) || 0;
+        setPurchaseData('total_amount', qty * price);
+    }, [purchaseData.quantity, purchaseData.unit_price]);
 
     const filteredItems = items.filter(item =>
         item.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -72,8 +92,20 @@ export default function Index({ auth, items, recent_logs }: PageProps & { items:
         e.preventDefault();
         if (!selectedItem) return;
         // @ts-ignore
-        postStock(route('inventory.update-stock', selectedItem.id), {
+        postStock(route('inventory.stock', selectedItem.id), {
             onSuccess: () => setSelectedItem(null)
+        });
+    };
+
+    const handlePurchaseSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!purchaseItem) return;
+        // @ts-ignore
+        postPurchase(route('inventory.purchase', purchaseItem.id), {
+            onSuccess: () => {
+                setPurchaseItem(null);
+                resetPurchase();
+            }
         });
     };
 
@@ -173,12 +205,20 @@ export default function Index({ auth, items, recent_logs }: PageProps & { items:
                                                     )}
                                                 </td>
                                                 <td className="px-10 py-8 text-right">
-                                                    <button
-                                                        onClick={() => setSelectedItem(item)}
-                                                        className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg active:scale-95 whitespace-nowrap"
-                                                    >
-                                                        Adjust Stock
-                                                    </button>
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button
+                                                            onClick={() => setPurchaseItem(item)}
+                                                            className="bg-orange-100 text-orange-600 px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 hover:text-white transition-all active:scale-95 whitespace-nowrap flex items-center gap-2"
+                                                        >
+                                                            <ShoppingCart size={14} /> Buy Stock
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setSelectedItem(item)}
+                                                            className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-all shadow-lg active:scale-95 whitespace-nowrap"
+                                                        >
+                                                            Adjust
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -390,6 +430,114 @@ export default function Index({ auth, items, recent_logs }: PageProps & { items:
                     </form>
                 </div>
             )}
-        </div>
+
+            {/* Purchase Entry Modal */}
+            {purchaseItem && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <form onSubmit={handlePurchaseSubmit} className="bg-white rounded-[3rem] p-10 max-w-2xl w-full shadow-[0_40px_100px_rgba(0,0,0,0.2)] animate-in zoom-in-95 duration-300 overflow-y-auto max-h-[95vh]">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none flex items-center gap-3">
+                                    <ShoppingCart className="text-orange-600" size={24} /> Stock Purchase Entry
+                                </h3>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2 italic">Procurement & Ledger Synchronization</p>
+                                <p className="mt-4 inline-block px-4 py-1.5 bg-slate-100 rounded-lg text-[10px] font-black text-slate-900 uppercase tracking-widest border border-slate-200">{purchaseItem.name}</p>
+                            </div>
+                            <button type="button" onClick={() => setPurchaseItem(null)} className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-full text-slate-400 hover:text-red-500 transition-all font-black">✕</button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8 mb-8">
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Quantity ({purchaseItem.unit})</label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50 p-5 font-black text-2xl tabular-nums text-slate-900 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500"
+                                    value={purchaseData.quantity}
+                                    onChange={e => setPurchaseData('quantity', e.target.value)}
+                                    placeholder="0.00"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Unit Purchase Price (₹)</label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50 p-5 font-black text-2xl tabular-nums text-slate-900 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500"
+                                    value={purchaseData.unit_price}
+                                    onChange={e => setPurchaseData('unit_price', e.target.value)}
+                                    placeholder="0.00"
+                                    required
+                                />
+                            </div>
+                            <div className="col-span-2 bg-orange-50 p-6 rounded-3xl border border-orange-100 flex justify-between items-center group">
+                                <div>
+                                    <p className="text-[9px] font-black text-orange-800/60 uppercase tracking-widest mb-1 italic">Calculated Financial Outflow</p>
+                                    <p className="text-4xl font-black text-orange-600 tabular-nums">₹ {purchaseData.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                </div>
+                                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-orange-500 shadow-sm group-hover:scale-110 transition-transform">
+                                    <Banknote size={24} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8 mb-8">
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Payment Method</label>
+                                <select
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50 p-5 font-black text-slate-900 text-xs focus:ring-4 focus:ring-orange-500/10 uppercase tracking-widest"
+                                    value={purchaseData.payment_mode}
+                                    onChange={e => setPurchaseData('payment_mode', e.target.value)}
+                                >
+                                    <option value="Cash">Cash Payment</option>
+                                    <option value="Bank">Bank Transfer / UPI</option>
+                                    <option value="Cheque">Cheque Payment</option>
+                                </select>
+                            </div>
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Fund Source (Ledger Account)</label>
+                                <select
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50 p-5 font-black text-slate-900 text-xs focus:ring-4 focus:ring-orange-500/10 uppercase tracking-widest"
+                                    value={purchaseData.account_id}
+                                    onChange={e => setPurchaseData('account_id', e.target.value)}
+                                >
+                                    <option value="1">Cash in Hand</option>
+                                    <option value="2">Main Bank Account</option>
+                                </select>
+                            </div>
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Expense Classification</label>
+                                <select
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50 p-5 font-black text-slate-900 text-xs focus:ring-4 focus:ring-orange-500/10 uppercase tracking-widest"
+                                    value={purchaseData.expense_account_id}
+                                    onChange={e => setPurchaseData('expense_account_id', e.target.value)}
+                                >
+                                    <option value="5">Ritual Expenses (Pooja Stock)</option>
+                                    <option value="6">Administrative Expenses (Office)</option>
+                                </select>
+                            </div>
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Vendor / Remarks</label>
+                                <input
+                                    className="w-full rounded-2xl border-slate-100 bg-slate-50 p-5 font-black text-slate-900 text-xs focus:ring-4 focus:ring-orange-500/10 transition-all placeholder:text-slate-300 uppercase tracking-tight"
+                                    value={purchaseData.remarks}
+                                    onChange={e => setPurchaseData('remarks', e.target.value)}
+                                    placeholder="E.G. LOCAL MARKET BULK BUY"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={purchaseProcessing}
+                            className="w-full bg-slate-900 hover:bg-orange-600 text-white font-black py-6 rounded-3xl shadow-2xl transition-all scale-100 hover:scale-[1.02] active:scale-95 disabled:opacity-50 uppercase tracking-[0.3em] text-[10px]"
+                        >
+                            {purchaseProcessing ? 'RECORDING TRANSACTION...' : 'AUTHORIZE PROCUREMENT'}
+                        </button>
+                    </form>
+                </div>
+            )}
+        </AuthenticatedLayout>
     );
 }
