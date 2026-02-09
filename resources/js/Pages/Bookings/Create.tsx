@@ -15,12 +15,15 @@ import {
     Flame,
     Clock,
     ChevronRight,
-    ArrowRight
+    ArrowRight,
+    Loader2,
+    RefreshCw
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
 import axios from 'axios';
 import { fetchMalayalamTransliteration } from '@/Services/MalayalamService';
+import { bluetoothPrinter } from '@/Services/BluetoothPrinterService';
 import DevoteeSearchModal from '@/Components/Devotee/SearchModal';
 
 interface Vazhipadu {
@@ -37,13 +40,16 @@ interface Deity {
 }
 
 export default function Create({ auth, vazhipadus, deities }: PageProps & { vazhipadus: Vazhipadu[], deities: Deity[] }) {
+    const { flash } = usePage<PageProps>().props as any;
     const [selectedDevotee, setSelectedDevotee] = useState<Devotee | null>(null);
     const [isManglish, setIsManglish] = useState(true);
     const [showSearchModal, setShowSearchModal] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         devotee_id: '',
-        vazhipadu_id: '',
+        vazhipadu_ids: [] as string[],
         deity_id: deities[0]?.id || '',
         booking_date: new Date().toISOString().split('T')[0],
         payment_mode: 'Cash',
@@ -71,6 +77,39 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
         }
     }, [data.devotee_name, debouncedTransliterate, selectedDevotee]);
 
+    // Handle Auto-Print after success
+    useEffect(() => {
+        if (flash?.created_booking_ids && flash.created_booking_ids.length > 0) {
+            handlePrintAll(flash.created_booking_ids);
+            setShowSuccess(true);
+        }
+    }, [flash]);
+
+    const handlePrintAll = async (ids: number[]) => {
+        setIsPrinting(true);
+        try {
+            for (const id of ids) {
+                const response = await axios.get(route('api.receipt.booking', id));
+                await bluetoothPrinter.printReceipt(response.data);
+            }
+        } catch (error) {
+            console.error('Printing failed:', error);
+        } finally {
+            setIsPrinting(false);
+        }
+    };
+
+    const toggleVazhipadu = (id: string) => {
+        const current = [...data.vazhipadu_ids];
+        const index = current.indexOf(id);
+        if (index > -1) {
+            current.splice(index, 1);
+        } else {
+            current.push(id);
+        }
+        setData('vazhipadu_ids', current);
+    };
+
     const selectDevotee = (devotee: Devotee) => {
         setSelectedDevotee(devotee);
         setData('devotee_id', devotee.id.toString());
@@ -79,9 +118,22 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        // @ts-ignore
-        post(route('bookings.store'));
+        post(route('bookings.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                // Success handled by flash effect
+            }
+        });
     };
+
+    const isSubmitDisabled = processing ||
+        (!data.devotee_id && (!data.devotee_name || !data.devotee_phone)) ||
+        data.vazhipadu_ids.length === 0;
+
+    const totalAmount = data.vazhipadu_ids.reduce((sum, id) => {
+        const v = vazhipadus.find(v => v.id.toString() === id);
+        return sum + parseFloat(v?.rate || '0');
+    }, 0);
 
     return (
         <AuthenticatedLayout
@@ -99,6 +151,45 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
             }
         >
             <Head title="New Booking" />
+
+            {showSuccess && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="bg-white rounded-[3rem] p-12 max-w-lg w-full text-center shadow-2xl space-y-8 animate-in zoom-in-95 duration-500">
+                        <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-[2rem] flex items-center justify-center mx-auto ring-8 ring-emerald-50">
+                            <CheckCircle2 size={48} />
+                        </div>
+                        <div>
+                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">Sacred Booking Successful</h3>
+                            <p className="text-slate-500 font-bold mt-2 uppercase text-xs tracking-widest italic">{flash?.success}</p>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-3xl p-6 flex items-center justify-center gap-4">
+                            {isPrinting ? (
+                                <>
+                                    <Loader2 className="animate-spin text-orange-600" size={20} />
+                                    <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Printing Sacred Receipts...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Printer className="text-emerald-600" size={20} />
+                                    <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Receipts Dispatched to Printer</span>
+                                </>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setShowSuccess(false);
+                                reset();
+                                setSelectedDevotee(null);
+                            }}
+                            className="w-full bg-slate-900 hover:bg-orange-600 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                        >
+                            <RefreshCw size={18} /> Process New Entry
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="max-w-[1500px] mx-auto py-4">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -220,6 +311,9 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
                             <div className="flex justify-between items-center mb-10">
                                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
                                     <Sparkles size={16} className="text-orange-500" /> Step 02: Offering Catalog
+                                    <span className="ml-4 px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-[9px] font-black animate-pulse">
+                                        {data.vazhipadu_ids.length} Selected
+                                    </span>
                                 </h3>
                                 <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-wider italic">
                                     Total Items: {vazhipadus.length} Ready
@@ -231,31 +325,31 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
                                     <button
                                         key={v.id}
                                         type="button"
-                                        onClick={() => setData('vazhipadu_id', v.id.toString())}
-                                        className={`p-5 rounded-[2rem] border-2 text-left transition-all duration-300 relative group flex flex-col justify-between h-40 ${data.vazhipadu_id === v.id.toString()
+                                        onClick={() => toggleVazhipadu(v.id.toString())}
+                                        className={`p-5 rounded-[2rem] border-2 text-left transition-all duration-300 relative group flex flex-col justify-between h-40 ${data.vazhipadu_ids.includes(v.id.toString())
                                             ? 'border-orange-600 bg-orange-600 text-white shadow-2xl shadow-orange-200 transform scale-[1.05] z-10'
                                             : 'border-slate-50 bg-slate-50 hover:border-orange-200 hover:bg-white text-slate-900'}`}
                                     >
                                         <div>
-                                            {data.vazhipadu_id === v.id.toString() && (
-                                                <div className="absolute top-4 right-4 text-white">
+                                            {data.vazhipadu_ids.includes(v.id.toString()) && (
+                                                <div className="absolute top-4 right-4 text-white animate-in zoom-in duration-300">
                                                     <CheckCircle2 size={16} />
                                                 </div>
                                             )}
-                                            <div className={`text-xs font-black uppercase tracking-tight leading-tight mb-1 truncate ${data.vazhipadu_id === v.id.toString() ? 'text-white' : 'text-slate-900'}`}>
+                                            <div className={`text-xs font-black uppercase tracking-tight leading-tight mb-1 truncate ${data.vazhipadu_ids.includes(v.id.toString()) ? 'text-white' : 'text-slate-900'}`}>
                                                 {v.name}
                                             </div>
-                                            <div className={`text-[10px] font-malayalam tracking-normal mb-4 truncate ${data.vazhipadu_id === v.id.toString() ? 'text-orange-100' : 'text-slate-400'}`}>
+                                            <div className={`text-[10px] font-malayalam tracking-normal mb-4 truncate ${data.vazhipadu_ids.includes(v.id.toString()) ? 'text-orange-100' : 'text-slate-400'}`}>
                                                 {v.name_ml}
                                             </div>
                                         </div>
-                                        <div className={`text-xl font-black tabular-nums ${data.vazhipadu_id === v.id.toString() ? 'text-white' : 'text-orange-600'}`}>
+                                        <div className={`text-xl font-black tabular-nums ${data.vazhipadu_ids.includes(v.id.toString()) ? 'text-white' : 'text-orange-600'}`}>
                                             ₹{parseFloat(v.rate).toLocaleString('en-IN')}
                                         </div>
                                     </button>
                                 ))}
                             </div>
-                            {errors.vazhipadu_id && <p className="mt-6 text-[10px] font-black text-red-500 uppercase tracking-[0.2em] italic px-2">Catalog selection required for checkout.</p>}
+                            {errors.vazhipadu_ids && <p className="mt-6 text-[10px] font-black text-red-500 uppercase tracking-[0.2em] italic px-2">Catalog selection required for checkout.</p>}
                         </div>
 
                         {/* Master Setup Panel */}
@@ -306,18 +400,18 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
                                 <div className="space-y-2">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500">Total Payable Value</p>
                                     <div className="text-6xl font-black tracking-tighter tabular-nums text-white">
-                                        ₹{parseFloat(vazhipadus.find(v => v.id.toString() === data.vazhipadu_id)?.rate || '0.00').toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                                        ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
                                     </div>
                                 </div>
 
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center px-1">
                                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Selection Summary</p>
-                                        {data.vazhipadu_id && <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />}
+                                        {data.vazhipadu_ids.length > 0 && <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />}
                                     </div>
                                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 italic text-sm font-medium text-slate-300 leading-relaxed min-h-[100px] flex items-center">
-                                        {data.vazhipadu_id
-                                            ? `Sacred offering of "${vazhipadus.find(v => v.id.toString() === data.vazhipadu_id)?.name}" at ${deities.find(d => d.id.toString() === data.deity_id)?.name || 'Main Shrine'} for ${selectedDevotee?.name || 'Authorized Devotee'}.`
+                                        {data.vazhipadu_ids.length > 0
+                                            ? `Sacred offerings of ${data.vazhipadu_ids.length} rituals at ${deities.find(d => d.id.toString() === data.deity_id)?.name || 'Main Shrine'} for ${selectedDevotee?.name || data.devotee_name || 'Authorized Devotee'}.`
                                             : "Awaiting Vazhipadu selection..."
                                         }
                                     </div>
@@ -359,7 +453,7 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
 
                                     <button
                                         onClick={submit}
-                                        disabled={processing || !data.devotee_id || !data.vazhipadu_id}
+                                        disabled={isSubmitDisabled}
                                         className="w-full bg-white text-slate-900 hover:bg-orange-50 disabled:opacity-30 disabled:grayscale font-black py-6 rounded-[2rem] shadow-2xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-4 text-xs uppercase tracking-[0.3em]"
                                     >
                                         {processing ? 'Processing...' : (

@@ -82,9 +82,15 @@ export class BluetoothPrinterService {
         if (data.type === 'Vazhipadu') {
             commands.push(encoder.encode(`RITUAL:  ${data.vazhipadu}\n`));
             if (data.vazhipadu_ml) {
-                // Note: Thermal printers usually need special encoding for Malayalam
-                // For now we send as-is or skip if printer doesn't support
-                commands.push(encoder.encode(`(ML)     ${data.vazhipadu_ml}\n`));
+                // Label for Malayalam Vazhipadu
+                commands.push(encoder.encode(`വഴിപാട് : ${data.vazhipadu_ml}\n`));
+            }
+
+            if (data.star) {
+                commands.push(encoder.encode(`STAR:    ${data.star}\n`));
+            }
+            if (data.star_ml) {
+                commands.push(encoder.encode(`നക്ഷത്രം : ${data.star_ml}\n`));
             }
         } else {
             commands.push(encoder.encode(`PURPOSE: ${data.purpose}\n`));

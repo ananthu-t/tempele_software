@@ -45,7 +45,8 @@ class BookingController extends Controller
     {
         $validated = $request->validate([
             'devotee_id' => 'required_without:devotee_name|nullable|exists:devotees,id',
-            'vazhipadu_id' => 'required|exists:vazhipadus,id',
+            'vazhipadu_ids' => 'required|array',
+            'vazhipadu_ids.*' => 'exists:vazhipadus,id',
             'deity_id' => 'required|exists:deities,id',
             'booking_date' => 'required|date',
             'booking_time' => 'nullable',
@@ -82,45 +83,54 @@ class BookingController extends Controller
                 $devoteeId = $devotee->id;
             }
 
-            $vazhipadu = Vazhipadu::findOrFail($validated['vazhipadu_id']);
+            $createdBookingIds = [];
             $bookingDate = Carbon::parse($validated['booking_date']);
-
-            // 1. Calculate dynamic price
-            $amount = $this->pricingService->getAmount($vazhipadu, $bookingDate);
-
-            // 2. Generate Receipt Number
-            $count = Booking::count() + 1;
-            $receipt = "RPT-" . date('Y') . "-" . str_pad($count, 5, '0', STR_PAD_LEFT);
-
-            // 3. Create Booking
-            $booking = Booking::create(array_merge($validated, [
-                'devotee_id' => $devoteeId,
-                'rate' => $amount,
-                'total_amount' => $amount,
-                'net_amount' => $amount,
-                'receipt_number' => $receipt,
-                'status' => 'Confirmed',
-                'payment_status' => 'Paid',
-            ]));
-
-            // 4. Record Financial Entry (Revenue)
-            // Resolve the standard 'Vazhipadu Collections' account
             $revenueAccount = Account::where('code', '4000')->first();
-            if ($revenueAccount) {
-                $this->financialService->recordTransaction([
-                    'account_id' => $revenueAccount->id,
-                    'type' => 'Credit', // Revenue increase
-                    'category' => 'Vazhipadu',
-                    'amount' => $amount,
-                    'transaction_date' => now()->toDateString(),
-                    'reference_type' => 'Booking',
-                    'reference_id' => $booking->id,
-                    'description' => "Vazhipadu booking: {$vazhipadu->name} - {$receipt}",
-                    'payment_mode' => $validated['payment_mode'],
-                ]);
+
+            foreach ($validated['vazhipadu_ids'] as $vazhipaduId) {
+                $vazhipadu = Vazhipadu::findOrFail($vazhipaduId);
+
+                // 1. Calculate dynamic price
+                $amount = $this->pricingService->getAmount($vazhipadu, $bookingDate);
+
+                // 2. Generate Receipt Number
+                $count = Booking::count() + 1;
+                $receipt = "RPT-" . date('Y') . "-" . str_pad($count, 5, '0', STR_PAD_LEFT);
+
+                // 3. Create Booking
+                $booking = Booking::create(array_merge($validated, [
+                    'devotee_id' => $devoteeId,
+                    'vazhipadu_id' => $vazhipaduId,
+                    'rate' => $amount,
+                    'total_amount' => $amount,
+                    'net_amount' => $amount,
+                    'receipt_number' => $receipt,
+                    'status' => 'Confirmed',
+                    'payment_status' => 'Paid',
+                ]));
+
+                $createdBookingIds[] = $booking->id;
+
+                // 4. Record Financial Entry (Revenue)
+                if ($revenueAccount) {
+                    $this->financialService->recordTransaction([
+                        'account_id' => $revenueAccount->id,
+                        'type' => 'Credit',
+                        'category' => 'Vazhipadu',
+                        'amount' => $amount,
+                        'transaction_date' => now()->toDateString(),
+                        'reference_type' => 'Booking',
+                        'reference_id' => $booking->id,
+                        'description' => "Vazhipadu: {$vazhipadu->name} - {$receipt}",
+                        'payment_mode' => $validated['payment_mode'],
+                    ]);
+                }
             }
 
-            return redirect()->route('bookings.index')->with('success', 'Booking successful. Receipt: ' . $receipt);
+            return back()->with([
+                'success' => count($createdBookingIds) . ' Bookings processed successfully.',
+                'created_booking_ids' => $createdBookingIds
+            ]);
         });
     }
 }

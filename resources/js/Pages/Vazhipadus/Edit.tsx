@@ -11,14 +11,24 @@ import { useEffect, useMemo } from 'react';
 import { debounce } from 'lodash';
 import { fetchMalayalamTransliteration } from '@/Services/MalayalamService';
 
-export default function Create({ auth }: PageProps) {
-    const { data, setData, post, processing, errors } = useForm({
-        category_id: '',
-        name: '',
-        name_ml: '',
-        rate: '',
-        duration: '',
-        description: '',
+interface Vazhipadu {
+    id: number;
+    category_id: number | null;
+    name: string;
+    name_ml: string;
+    rate: string;
+    duration: string;
+    description: string;
+}
+
+export default function Edit({ auth, vazhipadu }: PageProps & { vazhipadu: Vazhipadu }) {
+    const { data, setData, put, processing, errors } = useForm({
+        category_id: vazhipadu.category_id || '',
+        name: vazhipadu.name,
+        name_ml: vazhipadu.name_ml || '',
+        rate: vazhipadu.rate,
+        duration: vazhipadu.duration || '',
+        description: vazhipadu.description || '',
     });
 
     const debouncedTransliterate = useMemo(
@@ -31,14 +41,19 @@ export default function Create({ auth }: PageProps) {
         [setData]
     );
 
+    // Only auto-transliterate if name changes and name_ml is empty or was previous transliteration
+    // For simplicity in Edit, we might want to be careful not to overwrite manual edits
+    // But for this requirement, we'll keep it consistent with Create
     useEffect(() => {
-        debouncedTransliterate(data.name);
-    }, [data.name, debouncedTransliterate]);
+        if (data.name !== vazhipadu.name) {
+            debouncedTransliterate(data.name);
+        }
+    }, [data.name, debouncedTransliterate, vazhipadu.name]);
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         // @ts-ignore
-        post(route('vazhipadus.store'));
+        put(route('vazhipadus.update', vazhipadu.id));
     };
 
     return (
@@ -53,11 +68,11 @@ export default function Create({ auth }: PageProps) {
                     >
                         <ChevronLeft size={20} />
                     </Link>
-                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">Add New Vazhipadu</h2>
+                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">Edit Vazhipadu: {vazhipadu.name}</h2>
                 </div>
             }
         >
-            <Head title="Create Vazhipadu" />
+            <Head title={`Edit ${vazhipadu.name}`} />
 
             <div className="py-12 bg-gray-50 min-h-screen">
                 <div className="max-w-3xl mx-auto sm:px-6 lg:px-8">
@@ -71,7 +86,6 @@ export default function Create({ auth }: PageProps) {
                                         className={`w-full rounded-xl border-gray-100 bg-gray-50 focus:border-orange-500 focus:ring-orange-500 transition-all ${errors.name ? 'border-red-500' : ''}`}
                                         value={data.name}
                                         onChange={e => setData('name', e.target.value)}
-                                        placeholder="e.g. Pushpanjali"
                                     />
                                     {errors.name && <p className="mt-1 text-xs text-red-500 font-medium">{errors.name}</p>}
                                 </div>
@@ -84,7 +98,6 @@ export default function Create({ auth }: PageProps) {
                                         className="w-full rounded-xl border-gray-100 bg-gray-50 focus:border-orange-500 focus:ring-orange-500 transition-all font-malayalam"
                                         value={data.name_ml}
                                         onChange={e => setData('name_ml', e.target.value)}
-                                        placeholder="e.g. പുഷ്പാഞ്ജലി"
                                     />
                                 </div>
                                 <div>
@@ -96,7 +109,6 @@ export default function Create({ auth }: PageProps) {
                                             className={`w-full pl-8 rounded-xl border-gray-100 bg-gray-50 focus:border-orange-500 focus:ring-orange-500 transition-all ${errors.rate ? 'border-red-500' : ''}`}
                                             value={data.rate}
                                             onChange={e => setData('rate', e.target.value)}
-                                            placeholder="0.00"
                                         />
                                     </div>
                                     {errors.rate && <p className="mt-1 text-xs text-red-500 font-medium">{errors.rate}</p>}
@@ -108,7 +120,6 @@ export default function Create({ auth }: PageProps) {
                                         className="w-full rounded-xl border-gray-100 bg-gray-50 focus:border-orange-500 focus:ring-orange-500 transition-all"
                                         value={data.duration}
                                         onChange={e => setData('duration', e.target.value)}
-                                        placeholder="e.g. 10 mins or Daily"
                                     />
                                 </div>
                             </div>
@@ -120,13 +131,14 @@ export default function Create({ auth }: PageProps) {
                                     className="w-full rounded-xl border-gray-100 bg-gray-50 focus:border-orange-500 focus:ring-orange-500 transition-all"
                                     value={data.description}
                                     onChange={e => setData('description', e.target.value)}
-                                    placeholder="Brief description of the pooja..."
                                 />
                             </div>
 
                             <div className="bg-orange-50 rounded-xl p-4 flex gap-3 text-orange-800 border border-orange-100">
-                                <Info className="w-5 h-5 shrink-0" />
-                                <p className="text-sm font-medium">This info will appear on receipts and booking screens. Double-check the Malayalam spelling for correct printing.</p>
+                                <span className="p-2 bg-white rounded-lg shadow-sm">
+                                    <Info className="w-5 h-5 shrink-0" />
+                                </span>
+                                <p className="text-sm font-medium">Updates here reflect instantly on receipts. Ensure the Malayalam script is verified for accurate printing.</p>
                             </div>
                         </div>
 
@@ -143,7 +155,7 @@ export default function Create({ auth }: PageProps) {
                                 disabled={processing}
                                 className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold py-2.5 px-8 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-orange-100"
                             >
-                                <Save size={20} /> Save Vazhipadu
+                                <Save size={20} /> Update Offering
                             </button>
                         </div>
                     </form>

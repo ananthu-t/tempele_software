@@ -1,11 +1,12 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { PageProps, Devotee } from '@/types';
-import { Search, User, Zap, Printer, CheckCircle2, AlertCircle, X, ChevronDown } from 'lucide-react';
+import { Search, User, Zap, Printer, CheckCircle2, AlertCircle, X, ChevronDown, Loader2, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { debounce } from 'lodash';
 import axios from 'axios';
 import { fetchMalayalamTransliteration } from '@/Services/MalayalamService';
+import { bluetoothPrinter } from '@/Services/BluetoothPrinterService';
 import clsx from 'clsx';
 
 interface Vazhipadu {
@@ -23,15 +24,18 @@ interface Star {
 }
 
 export default function Index({ auth, vazhipadus, deities, nakshatras }: PageProps & { vazhipadus: Vazhipadu[], deities: any[], nakshatras: Star[] }) {
+    const { flash } = usePage<PageProps>().props as any;
     const [searchQuery, setSearchQuery] = useState('');
     const [devoteeResults, setDevoteeResults] = useState<Devotee[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showDevoteePopup, setShowDevoteePopup] = useState(false);
     const [selectedDevotee, setSelectedDevotee] = useState<Devotee | null>(null);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         devotee_id: '',
-        vazhipadu_id: '',
+        vazhipadu_ids: [] as string[],
         deity_id: deities[0]?.id || '',
         booking_date: new Date().toISOString().split('T')[0],
         payment_mode: 'Cash',
@@ -63,6 +67,39 @@ export default function Index({ auth, vazhipadus, deities, nakshatras }: PagePro
     useEffect(() => {
         debouncedTransliterate('beneficiary_nakshatra_ml', data.beneficiary_nakshatra);
     }, [data.beneficiary_nakshatra, debouncedTransliterate]);
+
+    // Handle Auto-Print after success
+    useEffect(() => {
+        if (flash?.created_booking_ids && flash.created_booking_ids.length > 0) {
+            handlePrintAll(flash.created_booking_ids);
+            setShowSuccess(true);
+        }
+    }, [flash]);
+
+    const handlePrintAll = async (ids: number[]) => {
+        setIsPrinting(true);
+        try {
+            for (const id of ids) {
+                const response = await axios.get(route('api.receipt.booking', id));
+                await bluetoothPrinter.printReceipt(response.data);
+            }
+        } catch (error) {
+            console.error('Printing failed:', error);
+        } finally {
+            setIsPrinting(false);
+        }
+    };
+
+    const toggleVazhipadu = (id: string) => {
+        const current = [...data.vazhipadu_ids];
+        const index = current.indexOf(id);
+        if (index > -1) {
+            current.splice(index, 1);
+        } else {
+            current.push(id);
+        }
+        setData('vazhipadu_ids', current);
+    };
 
     const handleDevoteeSearch = (q: string) => {
         setSearchQuery(q);
@@ -104,9 +141,9 @@ export default function Index({ auth, vazhipadus, deities, nakshatras }: PagePro
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(route('bookings.store'), {
+            preserveScroll: true,
             onSuccess: () => {
-                reset();
-                setSelectedDevotee(null);
+                // Success overlay handles state reset
             }
         });
     };
@@ -256,21 +293,30 @@ export default function Index({ auth, vazhipadus, deities, nakshatras }: PagePro
                                             </select>
                                         </div>
 
-                                        <div>
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block italic">Select Vazhipadu (Offering)</label>
-                                            <select
-                                                value={data.vazhipadu_id}
-                                                onChange={e => setData('vazhipadu_id', e.target.value)}
-                                                className="w-full bg-slate-50 border-none rounded-2xl py-5 px-6 font-black text-slate-900 uppercase tracking-tight focus:ring-2 focus:ring-slate-900/5 transition-all text-sm outline-none ring-0"
-                                                required
-                                            >
-                                                <option value="">-- SELECT OFFERING --</option>
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block italic">Select Vazhipadus (Offerings)</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
                                                 {vazhipadus.map(v => (
-                                                    <option key={v.id} value={v.id}>
-                                                        {v.name} {v.name_ml ? `(${v.name_ml})` : ''} - ₹{v.rate}
-                                                    </option>
+                                                    <button
+                                                        key={v.id}
+                                                        type="button"
+                                                        onClick={() => toggleVazhipadu(v.id.toString())}
+                                                        className={clsx(
+                                                            "p-4 rounded-2xl border-2 text-left transition-all duration-200 flex flex-col justify-between h-32",
+                                                            data.vazhipadu_ids.includes(v.id.toString())
+                                                                ? "border-slate-900 bg-slate-900 text-white shadow-xl"
+                                                                : "border-slate-50 bg-slate-50 hover:border-slate-200 text-slate-900"
+                                                        )}
+                                                    >
+                                                        <div>
+                                                            <div className="text-[10px] font-black uppercase tracking-tight truncate">{v.name}</div>
+                                                            <div className={clsx("text-[10px] font-malayalam tracking-normal mt-1 truncate", data.vazhipadu_ids.includes(v.id.toString()) ? "text-slate-400" : "text-slate-400")}>{v.name_ml}</div>
+                                                        </div>
+                                                        <div className={clsx("text-lg font-black tabular-nums", data.vazhipadu_ids.includes(v.id.toString()) ? "text-white" : "text-slate-900")}>₹{v.rate}</div>
+                                                    </button>
                                                 ))}
-                                            </select>
+                                            </div>
+                                            {errors.vazhipadu_ids && <p className="text-[10px] font-black text-red-500 italic uppercase tracking-[0.2em]">{errors.vazhipadu_ids}</p>}
                                         </div>
                                     </div>
 
@@ -302,14 +348,12 @@ export default function Index({ auth, vazhipadus, deities, nakshatras }: PagePro
 
                             <button
                                 type="submit"
-                                disabled={processing}
-                                className="w-full bg-slate-900 hover:bg-black text-white py-8 rounded-[1.5rem] font-black text-sm uppercase tracking-[0.3em] shadow-2xl shadow-slate-200 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-4"
+                                disabled={processing || data.vazhipadu_ids.length === 0}
+                                className="w-full bg-slate-900 text-white font-black py-6 rounded-[2rem] shadow-2xl transition-all hover:bg-slate-800 active:scale-95 flex items-center justify-center gap-4 text-xs uppercase tracking-[0.3em] disabled:opacity-30 disabled:grayscale"
                             >
-                                {processing ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/20 border-t-white"></div>
-                                ) : (
+                                {processing ? 'Processing...' : (
                                     <>
-                                        <Printer size={20} /> PRINT RECEIPT & CONFIRM
+                                        Print Sacred Receipt <Printer size={22} className="text-orange-600" />
                                     </>
                                 )}
                             </button>
@@ -317,56 +361,94 @@ export default function Index({ auth, vazhipadus, deities, nakshatras }: PagePro
                     </div>
                 </div>
 
-                {/* Right Column: Mini Dashboard */}
+                {/* Right Column: Checkout Info */}
                 <div className="lg:col-span-4 space-y-6">
-                    {selectedDevotee && (
-                        <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 space-y-4 animate-in zoom-in-95 duration-300">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-white/10 p-2 rounded-xl">
-                                    <User size={20} className="text-white" />
+                    <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl shadow-slate-200">
+                        <h3 className="text-xs font-black uppercase tracking-[0.4em] text-slate-500 mb-8">Checkout Summary</h3>
+
+                        <div className="space-y-10">
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500">Net Amount Payable</p>
+                                <div className="text-6xl font-black tracking-tighter tabular-nums text-white">
+                                    ₹{data.vazhipadu_ids.reduce((sum, id) => {
+                                        const v = vazhipadus.find(v => v.id.toString() === id);
+                                        return sum + parseFloat(v?.rate || '0');
+                                    }, 0).toLocaleString('en-IN')}
                                 </div>
-                                <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">Active Devotee</div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic">Selection Log</p>
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-medium text-slate-300 leading-relaxed min-h-[100px] flex items-center italic">
+                                    {data.vazhipadu_ids.length > 0
+                                        ? `Processing ${data.vazhipadu_ids.length} offerings for ${data.beneficiary_name || 'Sacred Devotee'}. Each ritual will generate a unique receipt.`
+                                        : "Awaiting ritual selection..."
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {selectedDevotee && (
+                        <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 space-y-4 animate-in zoom-in-95 duration-300">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-slate-100 p-2 rounded-xl">
+                                    <User size={20} className="text-slate-900" />
+                                </div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Active Devotee</div>
                             </div>
                             <div className="space-y-1">
-                                <h3 className="text-xl font-black uppercase tracking-tight">{selectedDevotee.name}</h3>
-                                <p className="text-sm font-medium text-white/60">{selectedDevotee.name_ml}</p>
+                                <h3 className="text-xl font-black uppercase tracking-tight text-slate-900">{selectedDevotee.name}</h3>
+                                <p className="text-sm font-medium text-slate-500">{selectedDevotee.name_ml}</p>
                             </div>
-                            <div className="pt-4 border-t border-white/10 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-70 italic">
+                            <div className="pt-4 border-t border-slate-50 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-slate-400 italic">
                                 <span>{selectedDevotee.phone}</span>
                                 <span>{selectedDevotee.star || 'RASHICHAKRAM'}</span>
                             </div>
                         </div>
                     )}
-
-                    <div className="bg-white rounded-[2.5rem] border border-slate-100 p-10 space-y-8 shadow-[0_20px_60px_rgba(0,0,0,0.02)]">
-                        <div>
-                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-                                <Zap size={14} className="text-orange-500" /> Terminal Summary
-                            </h3>
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center py-4 border-b border-slate-50">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Base Rate</span>
-                                    <span className="font-black text-slate-900">₹{vazhipadus.find(v => String(v.id) === data.vazhipadu_id)?.rate || '0.00'}</span>
-                                </div>
-                                <div className="flex justify-between items-center py-4 border-b border-slate-50">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Discount</span>
-                                    <span className="font-black text-slate-400">₹0.00</span>
-                                </div>
-                                <div className="flex justify-between items-center pt-4">
-                                    <span className="text-xs font-black text-slate-900 uppercase tracking-widest italic">Total Payable</span>
-                                    <span className="text-2xl font-black text-slate-900">₹{vazhipadus.find(v => String(v.id) === data.vazhipadu_id)?.rate || '0.00'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="p-8 bg-orange-50/50 rounded-[2rem] border border-orange-100/50">
-                        <p className="text-[10px] font-black text-orange-900/60 uppercase leading-relaxed tracking-wider italic">
-                            * Tip: Type names in English/Manglish for auto-transliteration to Malayalam. Use Tab to navigate quickly between fields.
-                        </p>
-                    </div>
                 </div>
             </div>
+
+            {/* Success Modal */}
+            {showSuccess && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="bg-white rounded-[3rem] p-12 max-w-lg w-full text-center shadow-2xl space-y-8 animate-in zoom-in-95 duration-500">
+                        <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-[2rem] flex items-center justify-center mx-auto ring-8 ring-emerald-50">
+                            <CheckCircle2 size={48} />
+                        </div>
+                        <div>
+                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">Booking Successful</h3>
+                            <p className="text-slate-500 font-bold mt-2 uppercase text-xs tracking-widest italic">{flash?.success}</p>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-3xl p-6 flex items-center justify-center gap-4">
+                            {isPrinting ? (
+                                <>
+                                    <Loader2 className="animate-spin text-orange-600" size={20} />
+                                    <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Printing Recipes...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Printer className="text-emerald-600" size={20} />
+                                    <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Receipts Sent to Printer</span>
+                                </>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setShowSuccess(false);
+                                reset();
+                                setSelectedDevotee(null);
+                            }}
+                            className="w-full bg-slate-900 hover:bg-orange-600 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                        >
+                            <RefreshCw size={18} /> New Entry
+                        </button>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

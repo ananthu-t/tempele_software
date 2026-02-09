@@ -12,17 +12,25 @@ class ReceiptDataController extends Controller
     {
         $booking->load(['devotee', 'vazhipadu', 'temple']);
 
+        $starMl = $booking->beneficiary_nakshatra_ml;
+        if (!$starMl) {
+            $starName = $booking->beneficiary_nakshatra ?? $booking->devotee->star;
+            if ($starName) {
+                $starMl = \App\Models\Nakshatra::where('name', $starName)->first()?->name_ml;
+            }
+        }
+
         return response()->json([
             'type' => 'Vazhipadu',
             'receipt_number' => $booking->receipt_number,
             'name' => $booking->beneficiary_name ?? $booking->devotee->name,
             'name_ml' => $booking->beneficiary_name_ml ?? $booking->devotee->name_ml,
             'star' => $booking->beneficiary_nakshatra ?? $booking->devotee->star,
-            'star_ml' => $booking->beneficiary_nakshatra_ml,
+            'star_ml' => $starMl,
             'amount' => $booking->net_amount,
             'vazhipadu' => $booking->vazhipadu->name,
             'vazhipadu_ml' => $booking->vazhipadu->name_ml,
-            'date' => $booking->booking_date,
+            'date' => $booking->booking_date->format('d-m-Y'),
             'temple_name' => $booking->temple->name,
             'verification_url' => route('verify.receipt', ['id' => $booking->id, 'type' => 'Vazhipadu'])
         ]);
