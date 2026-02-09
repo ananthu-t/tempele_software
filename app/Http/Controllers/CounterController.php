@@ -6,6 +6,7 @@ use App\Models\Vazhipadu;
 use App\Models\Devotee;
 use App\Models\Deity;
 use App\Models\Nakshatra;
+use App\Models\Account;
 use App\Models\Rashi;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
@@ -19,10 +20,11 @@ class CounterController extends Controller
     public function index()
     {
         return Inertia::render('Counter/Index', [
-            'vazhipadus' => Vazhipadu::with('category')->get(),
+            'vazhipadus' => Vazhipadu::with('category')->where('is_active', true)->get(),
             'deities' => Deity::all(),
             'nakshatras' => Nakshatra::all(),
             'rashis' => Rashi::all(),
+            'accounts' => Account::where('type', 'Revenue')->get(),
         ]);
     }
 

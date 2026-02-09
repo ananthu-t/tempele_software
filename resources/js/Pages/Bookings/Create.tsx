@@ -14,7 +14,7 @@ import {
     Sparkles,
     Flame,
     Clock,
-    ChevronRight,
+    ChevronDown,
     ArrowRight,
     Loader2,
     RefreshCw
@@ -39,7 +39,7 @@ interface Deity {
     name_ml: string;
 }
 
-export default function Create({ auth, vazhipadus, deities }: PageProps & { vazhipadus: Vazhipadu[], deities: Deity[] }) {
+export default function Create({ auth, vazhipadus, deities, accounts }: PageProps & { vazhipadus: Vazhipadu[], deities: Deity[], accounts: any[] }) {
     const { flash } = usePage<PageProps>().props as any;
     const [selectedDevotee, setSelectedDevotee] = useState<Devotee | null>(null);
     const [isManglish, setIsManglish] = useState(true);
@@ -54,6 +54,7 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
         booking_date: new Date().toISOString().split('T')[0],
         payment_mode: 'Cash',
         remarks: '',
+        account_id: accounts[0]?.id || '',
         // Quick devotee registration
         devotee_name: '',
         devotee_name_ml: '',
@@ -182,10 +183,11 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
                                 setShowSuccess(false);
                                 reset();
                                 setSelectedDevotee(null);
+                                setIsManglish(true);
                             }}
-                            className="w-full bg-slate-900 hover:bg-orange-600 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                            className="w-full bg-slate-900 hover:bg-emerald-600 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 group"
                         >
-                            <RefreshCw size={18} /> Process New Entry
+                            <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-500" /> Confirm & Post New Entry
                         </button>
                     </div>
                 </div>
@@ -414,6 +416,24 @@ export default function Create({ auth, vazhipadus, deities }: PageProps & { vazh
                                             ? `Sacred offerings of ${data.vazhipadu_ids.length} rituals at ${deities.find(d => d.id.toString() === data.deity_id)?.name || 'Main Shrine'} for ${selectedDevotee?.name || data.devotee_name || 'Authorized Devotee'}.`
                                             : "Awaiting Vazhipadu selection..."
                                         }
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1 italic">Accounting Head (ERP)</p>
+                                    <div className="relative group">
+                                        <select
+                                            className="w-full pl-6 pr-10 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all font-black text-white text-[10px] appearance-none uppercase tracking-widest cursor-pointer"
+                                            value={data.account_id}
+                                            onChange={e => setData('account_id', e.target.value)}
+                                        >
+                                            {accounts.map(acc => (
+                                                <option key={acc.id} value={acc.id} className="text-slate-900">{acc.name} ({acc.code})</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-500">
+                                            <ChevronDown size={14} />
+                                        </div>
                                     </div>
                                 </div>
 

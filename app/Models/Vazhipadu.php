@@ -22,7 +22,8 @@ class Vazhipadu extends Model
         'rate',
         'duration',
         'description',
-        'nakshatras'
+        'nakshatras',
+        'is_active',
     ];
 
     protected $casts = [

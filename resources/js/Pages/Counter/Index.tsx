@@ -23,7 +23,7 @@ interface Star {
     name_ml: string;
 }
 
-export default function Index({ auth, vazhipadus, deities, nakshatras }: PageProps & { vazhipadus: Vazhipadu[], deities: any[], nakshatras: Star[] }) {
+export default function Index({ auth, vazhipadus, deities, nakshatras, accounts }: PageProps & { vazhipadus: Vazhipadu[], deities: any[], nakshatras: Star[], accounts: any[] }) {
     const { flash } = usePage<PageProps>().props as any;
     const [searchQuery, setSearchQuery] = useState('');
     const [devoteeResults, setDevoteeResults] = useState<Devotee[]>([]);
@@ -43,6 +43,7 @@ export default function Index({ auth, vazhipadus, deities, nakshatras }: PagePro
         beneficiary_name_ml: '',
         beneficiary_nakshatra: '',
         beneficiary_nakshatra_ml: '',
+        account_id: accounts[0]?.id || '',
         remarks: '',
     });
 
@@ -378,10 +379,28 @@ export default function Index({ auth, vazhipadus, deities, nakshatras }: PagePro
                             </div>
 
                             <div className="space-y-4">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic">Accounting Head (ERP)</p>
+                                <div className="relative group">
+                                    <select
+                                        className="w-full pl-6 pr-10 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all font-black text-white text-[10px] appearance-none uppercase tracking-widest cursor-pointer group-hover:bg-white/10"
+                                        value={data.account_id}
+                                        onChange={e => setData('account_id', e.target.value)}
+                                    >
+                                        {accounts.map(acc => (
+                                            <option key={acc.id} value={acc.id} className="text-slate-900">{acc.name} ({acc.code})</option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-500">
+                                        <ChevronDown size={14} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic">Selection Log</p>
                                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-medium text-slate-300 leading-relaxed min-h-[100px] flex items-center italic">
                                     {data.vazhipadu_ids.length > 0
-                                        ? `Processing ${data.vazhipadu_ids.length} offerings for ${data.beneficiary_name || 'Sacred Devotee'}. Each ritual will generate a unique receipt.`
+                                        ? `Processing ${data.vazhipadu_ids.length} offerings for ${data.beneficiary_name || 'Sacred Devotee'}. Recorded under ${accounts.find(a => a.id.toString() === data.account_id.toString())?.name || 'Revenue Account'}.`
                                         : "Awaiting ritual selection..."
                                     }
                                 </div>
@@ -441,10 +460,11 @@ export default function Index({ auth, vazhipadus, deities, nakshatras }: PagePro
                                 setShowSuccess(false);
                                 reset();
                                 setSelectedDevotee(null);
+                                setSearchQuery('');
                             }}
-                            className="w-full bg-slate-900 hover:bg-orange-600 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                            className="w-full bg-slate-900 hover:bg-emerald-600 text-white py-6 rounded-2xl font-black text-xs uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 group"
                         >
-                            <RefreshCw size={18} /> New Entry
+                            <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-500" /> Confirm & Post New Entry
                         </button>
                     </div>
                 </div>

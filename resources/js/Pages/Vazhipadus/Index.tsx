@@ -22,6 +22,7 @@ interface Vazhipadu {
     rate: string;
     duration: string;
     description: string;
+    is_active: boolean;
 }
 
 export default function Index({ auth, vazhipadus }: PageProps & { vazhipadus: Vazhipadu[] }) {
@@ -99,7 +100,12 @@ export default function Index({ auth, vazhipadus }: PageProps & { vazhipadus: Va
                                                     <HandCoins size={24} />
                                                 </div>
                                                 <div>
-                                                    <div className="font-black text-slate-900 uppercase tracking-tight leading-tight group-hover:text-orange-600 transition-colors">{item.name}</div>
+                                                    <div className="font-black text-slate-900 uppercase tracking-tight leading-tight group-hover:text-orange-600 transition-colors flex items-center gap-2">
+                                                        {item.name}
+                                                        {!item.is_active && (
+                                                            <span className="bg-red-50 text-red-600 text-[8px] px-1.5 py-0.5 rounded-full border border-red-100">DISABLED</span>
+                                                        )}
+                                                    </div>
                                                     <div className="font-malayalam text-orange-600 font-bold text-sm mt-0.5">{item.name_ml}</div>
                                                 </div>
                                             </div>

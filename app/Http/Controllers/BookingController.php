@@ -35,8 +35,9 @@ class BookingController extends Controller
     public function create()
     {
         return Inertia::render('Bookings/Create', [
-            'vazhipadus' => Vazhipadu::all(),
+            'vazhipadus' => Vazhipadu::where('is_active', true)->get(),
             'deities' => Deity::all(),
+            'accounts' => Account::where('type', 'Revenue')->get(),
             'last_receipt' => Booking::latest()->first()?->receipt_number,
         ]);
     }
@@ -51,7 +52,8 @@ class BookingController extends Controller
             'booking_date' => 'required|date',
             'booking_time' => 'nullable',
             'payment_mode' => 'required|string',
-            'remarks' => 'nullable|string',
+            'remarks' => 'nullable|string|max:500',
+            'account_id' => 'nullable|exists:accounts,id',
             'beneficiary_name' => 'nullable|string|max:255',
             'beneficiary_name_ml' => 'nullable|string|max:255',
             'beneficiary_nakshatra' => 'nullable|string|max:255',
@@ -85,7 +87,9 @@ class BookingController extends Controller
 
             $createdBookingIds = [];
             $bookingDate = Carbon::parse($validated['booking_date']);
-            $revenueAccount = Account::where('code', '4000')->first();
+            $revenueAccount = isset($validated['account_id'])
+                ? Account::find($validated['account_id'])
+                : Account::where('code', '4000')->first();
 
             foreach ($validated['vazhipadu_ids'] as $vazhipaduId) {
                 $vazhipadu = Vazhipadu::findOrFail($vazhipaduId);

@@ -19,6 +19,7 @@ export default function Create({ auth }: PageProps) {
         rate: '',
         duration: '',
         description: '',
+        is_active: true,
     });
 
     const debouncedTransliterate = useMemo(
@@ -110,6 +111,21 @@ export default function Create({ auth }: PageProps) {
                                         onChange={e => setData('duration', e.target.value)}
                                         placeholder="e.g. 10 mins or Daily"
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2 font-black uppercase tracking-widest text-[10px]">Active Status</label>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setData('is_active', !data.is_active)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${data.is_active ? 'bg-orange-600' : 'bg-gray-200'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${data.is_active ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                        <span className="text-sm font-bold text-gray-600 uppercase tracking-widest text-[10px]">
+                                            {data.is_active ? 'Offering Enabled' : 'Offering Disabled'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
