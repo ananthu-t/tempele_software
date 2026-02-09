@@ -58,6 +58,15 @@ export class BluetoothPrinterService {
 
         const encoder = new TextEncoder();
 
+        const labels = data.labels || {
+            receipt: 'RECEIPT',
+            date: 'DATE',
+            devotee: 'DEVOTEE',
+            vazhipadu: 'RITUAL',
+            star: 'STAR',
+            amount: 'TOTAL'
+        };
+
         let commands: Uint8Array[] = [
             this.COMMANDS.RESET,
             this.COMMANDS.ALIGN_CENTER,
@@ -70,27 +79,27 @@ export class BluetoothPrinterService {
             this.COMMANDS.FEED_LINE,
             this.COMMANDS.ALIGN_LEFT,
             encoder.encode('--------------------------------\n'),
-            encoder.encode(`RECEIPT: ${data.receipt_number}\n`),
-            encoder.encode(`DATE:    ${data.date}\n`),
+            encoder.encode(`${labels.receipt}: ${data.receipt_number}\n`),
+            encoder.encode(`${labels.date}:    ${data.date}\n`),
             this.COMMANDS.FEED_LINE,
             this.COMMANDS.BOLD_ON,
-            encoder.encode(`DEVOTEE: ${data.name}\n`),
+            encoder.encode(`${labels.devotee}: ${data.name}\n`),
+            data.name_ml ? encoder.encode(`(${data.name_ml})\n`) : new Uint8Array(),
             this.COMMANDS.BOLD_OFF,
             this.COMMANDS.FEED_LINE,
         ];
 
         if (data.type === 'Vazhipadu') {
-            commands.push(encoder.encode(`RITUAL:  ${data.vazhipadu}\n`));
+            commands.push(encoder.encode(`${labels.vazhipadu}:  ${data.vazhipadu}\n`));
             if (data.vazhipadu_ml) {
-                // Label for Malayalam Vazhipadu
-                commands.push(encoder.encode(`വഴിപാട് : ${data.vazhipadu_ml}\n`));
+                commands.push(encoder.encode(`(${data.vazhipadu_ml})\n`));
             }
 
             if (data.star) {
-                commands.push(encoder.encode(`STAR:    ${data.star}\n`));
+                commands.push(encoder.encode(`${labels.star}:    ${data.star}\n`));
             }
             if (data.star_ml) {
-                commands.push(encoder.encode(`നക്ഷത്രം : ${data.star_ml}\n`));
+                commands.push(encoder.encode(`(${data.star_ml})\n`));
             }
         } else {
             commands.push(encoder.encode(`PURPOSE: ${data.purpose}\n`));
@@ -101,7 +110,7 @@ export class BluetoothPrinterService {
             this.COMMANDS.ALIGN_RIGHT,
             this.COMMANDS.BOLD_ON,
             this.COMMANDS.DOUBLE_WIDTH_ON,
-            encoder.encode(`TOTAL: RS.${data.amount}\n`),
+            encoder.encode(`RS.${data.amount}\n`),
             this.COMMANDS.TEXT_NORMAL,
             this.COMMANDS.FEED_LINE,
             this.COMMANDS.ALIGN_CENTER,

@@ -29,11 +29,33 @@ class ReceiptDataController extends Controller
             'star_ml' => $starMl,
             'amount' => $booking->net_amount,
             'vazhipadu' => $booking->vazhipadu->name,
-            'vazhipadu_ml' => $booking->vazhipadu->name_ml,
+            'vazhipadu_ml' => $booking->vazhipadu->name_ml ?? $this->getVazhipaduMlFallback($booking->vazhipadu->name),
             'date' => $booking->booking_date->format('d-m-Y'),
             'temple_name' => $booking->temple->name,
-            'verification_url' => route('verify.receipt', ['id' => $booking->id, 'type' => 'Vazhipadu'])
+            'verification_url' => route('verify.receipt', ['id' => $booking->id, 'type' => 'Vazhipadu']),
+            'labels' => [
+                'receipt' => 'രസീത് നമ്പർ / RECEIPT NO',
+                'date' => 'തീയതി / DATE',
+                'devotee' => 'ഭക്തന്റെ പേര് / DEVOTEE NAME',
+                'vazhipadu' => 'വഴിപാട് / RITUAL',
+                'star' => 'നക്ഷത്രം / STAR',
+                'amount' => 'തുക / AMOUNT',
+            ]
         ]);
+    }
+
+    private function getVazhipaduMlFallback($name)
+    {
+        $map = [
+            'archana' => 'അർച്ചന',
+            'pushpanjali' => 'പുഷ്പാഞ്ജലി',
+            'ganapathy homam' => 'ഗണപതി ഹോമം',
+            'neyyvilakku' => 'നെയ്യ് വിളക്ക്',
+            'payasam' => 'പായസം',
+            'archana thi' => 'അർച്ചന', // Typo handling if needed
+        ];
+
+        return $map[strtolower(trim($name))] ?? null;
     }
 
     public function getDonationData(Donation $donation)
