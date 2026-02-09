@@ -3,6 +3,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import SidebarItem from '@/Components/SidebarItem';
 import ShortcutHelper from '@/Components/ShortcutHelper';
+import GlobalQuickAction from '@/Components/GlobalQuickAction';
 import { Link, usePage, router } from '@inertiajs/react';
 import { User, PageProps } from '@/types';
 import {
@@ -18,6 +19,7 @@ import {
     Settings,
     Flame,
     Sparkles,
+    ShoppingCart,
     Menu,
     X,
     ChevronLeft,
@@ -28,7 +30,8 @@ import {
     Landmark,
     Maximize,
     Minimize,
-    Keyboard
+    Keyboard,
+    History
 } from 'lucide-react';
 
 export default function Authenticated({ user, header, children }: PropsWithChildren<{ user: User, header?: ReactNode }>) {
@@ -86,44 +89,36 @@ export default function Authenticated({ user, header, children }: PropsWithChild
 
     const navGroups = [
         {
-            label: 'Main',
+            label: 'Operational Hub',
             items: [
-                { title: 'Dashboard', href: route('dashboard'), icon: <LayoutDashboard size={20} />, id: 'dashboard' },
-                { title: 'Devotee Database', href: route('devotees.index'), icon: <Users size={20} />, id: 'devotees', permission: 'view bookings' },
-                { title: 'Vazhipadu Booking', href: route('bookings.index'), icon: <CalendarCheck size={20} />, id: 'bookings', permission: 'create booking' },
-                { title: 'Counter Interface', href: route('counter.index'), icon: <Menu size={20} />, id: 'counter', permission: 'create booking' },
+                { title: 'Counter Terminal', href: route('counter.index'), activeRoute: 'counter.index', icon: <LayoutDashboard size={20} />, id: 'counter', permission: 'create booking' },
+                { title: 'Audit History', href: route('counter.history'), activeRoute: 'counter.history', icon: <History size={20} />, id: 'counter-history', permission: 'create booking' },
+                { title: 'Devotee Registry', href: route('devotees.index'), activeRoute: 'devotees.*', icon: <UsersRound size={20} />, id: 'devotees', permission: 'create booking' },
+                { title: 'Ritual Bookings', href: route('bookings.index'), activeRoute: 'bookings.*', icon: <CalendarCheck size={20} />, id: 'bookings', permission: 'create booking' },
+                { title: 'Halls & Assets', href: route('assets.index'), activeRoute: 'assets.*', icon: <Warehouse size={20} />, id: 'assets', permission: 'manage assets' },
+                { title: 'Asset Bookings', href: route('asset-bookings.index'), activeRoute: 'asset-bookings.*', icon: <CalendarCheck size={20} />, id: 'asset-bookings', permission: 'manage asset bookings' },
             ]
         },
         {
-            label: 'Financials',
+            label: 'Financials & Accounts',
             items: [
-                { title: 'Donations', href: route('donations.index'), icon: <HandHeart size={20} />, id: 'donations', permission: 'manage donations' },
-                { title: 'Daily Ledger', href: route('ledgers.index'), icon: <BookOpen size={20} />, id: 'ledgers', permission: 'manage accounting' },
-                { title: 'Financial Accounts', href: route('accounts.index'), icon: <Landmark size={20} />, id: 'accounts', permission: 'manage accounts' },
-                { title: 'Trial Balance', href: route('reports.trial-balance'), icon: <BarChart3 size={20} />, id: 'trial-balance', permission: 'view financial reports' },
-                { title: 'Income Statement', href: route('reports.income-statement'), icon: <BarChart3 size={20} />, id: 'income-statement', permission: 'view financial reports' },
+                { title: 'Donations', href: route('donations.index'), activeRoute: 'donations.*', icon: <HandHeart size={20} />, id: 'donations', permission: 'manage donations' },
+                { title: 'Daily Ledger', href: route('ledgers.index'), activeRoute: 'ledgers.*', icon: <BookOpen size={20} />, id: 'ledgers', permission: 'manage accounting' },
+                { title: 'Financial Accounts', href: route('accounts.index'), activeRoute: 'accounts.*', icon: <Landmark size={20} />, id: 'accounts', permission: 'manage accounts' },
+                { title: 'Trial Balance', href: route('reports.trial-balance'), activeRoute: 'reports.trial-balance', icon: <BarChart3 size={20} />, id: 'trial-balance', permission: 'view financial reports' },
+                { title: 'Income Statement', href: route('reports.income-statement'), activeRoute: 'reports.income-statement', icon: <BarChart3 size={20} />, id: 'income-statement', permission: 'view financial reports' },
             ]
         },
         {
-            label: 'Management',
+            label: 'Management Setup',
             items: [
-                { title: 'Halls & Assets', href: route('assets.index'), icon: <Warehouse size={20} />, id: 'assets', permission: 'manage assets' },
-                { title: 'Asset Bookings', href: route('asset-bookings.index'), icon: <CalendarCheck size={20} />, id: 'asset-bookings', permission: 'manage asset bookings' },
-                { title: 'Inventory & Store', href: route('inventory.index'), icon: <Package size={20} />, id: 'inventory', permission: 'manage inventory' },
-                { title: 'Staff & Priests', href: route('staff.index'), icon: <UsersRound size={20} />, id: 'staff', permission: 'manage staff' },
-                { title: 'User Management', href: route('users.index'), icon: <Users size={20} />, id: 'users', permission: 'manage users' },
-            ]
-        },
-        {
-            label: 'Master Setup',
-            items: [
-                { title: 'Temple Master', href: route('temples.index'), icon: <Settings size={20} />, id: 'temple', permission: 'manage temple master' },
-                { title: 'Deity Master', href: route('deities.index'), icon: <Flame size={20} />, id: 'deities', permission: 'manage temple master' },
-                { title: 'Vazhipadu Master', href: route('vazhipadus.index'), icon: <Sparkles size={20} />, id: 'vazhipadus', permission: 'manage vazhipadu' },
-                { title: 'Vazhipadu Categories', href: route('vazhipadu-categories.index'), icon: <Sparkles size={20} />, id: 'categories', permission: 'manage vazhipadu' },
-                { title: 'Vazhipadu Rates', href: route('vazhipadu-rates.index'), icon: <Sparkles size={20} />, id: 'rates', permission: 'manage vazhipadu' },
-                { title: 'Receipt Templates', href: route('receipt-templates.index'), icon: <Settings size={20} />, id: 'receipt-templates', permission: 'manage settings' },
-                { title: 'Audit Logs', href: route('audit-logs.index'), icon: <BookOpen size={20} />, id: 'audit', permission: 'audit records' },
+                { title: 'Purchase Entry', href: route('purchases.index'), activeRoute: 'purchases.*', icon: <ShoppingCart size={20} />, id: 'purchases', permission: 'manage inventory' },
+                { title: 'Inventory & Store', href: route('inventory.index'), activeRoute: 'inventory.*', icon: <Package size={20} />, id: 'inventory', permission: 'manage inventory' },
+                { title: 'Staff & Priests', href: route('staff.index'), activeRoute: 'staff.*', icon: <UsersRound size={20} />, id: 'staff', permission: 'manage staff' },
+                { title: 'User Management', href: route('users.index'), activeRoute: 'users.*', icon: <Users size={20} />, id: 'users', permission: 'manage users' },
+                { title: 'Temple Settings', href: route('settings.index'), activeRoute: 'settings.*', icon: <Settings size={20} />, id: 'temple-settings', permission: 'manage temple master' },
+                { title: 'Vazhipadu Master', href: route('vazhipadus.index'), activeRoute: 'vazhipadus.*', icon: <Sparkles size={20} />, id: 'vazhipadus', permission: 'manage vazhipadu' },
+                { title: 'Audit Logs', href: route('audit-logs.index'), activeRoute: 'audit-logs.*', icon: <BookOpen size={20} />, id: 'audit', permission: 'audit records' },
             ]
         }
     ];
@@ -171,7 +166,7 @@ export default function Authenticated({ user, header, children }: PropsWithChild
                                     href={item.href}
                                     icon={item.icon}
                                     title={item.title}
-                                    active={url === item.href || url.startsWith(item.href + '/')}
+                                    active={route().current(item.activeRoute)}
                                     collapsed={collapsed}
                                 />
                             ))}
@@ -291,6 +286,8 @@ export default function Authenticated({ user, header, children }: PropsWithChild
                 isOpen={showShortcuts}
                 onClose={() => setShowShortcuts(false)}
             />
+
+            <GlobalQuickAction />
 
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar {

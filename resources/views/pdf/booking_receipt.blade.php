@@ -17,8 +17,22 @@
         .header {
             text-align: center;
             border-bottom: 2px solid #ef4444;
-            padding-bottom: 10px;
+            padding-bottom: 15px;
             margin-bottom: 20px;
+        }
+
+        .temple-name {
+            font-size: 20px;
+            font-weight: 900;
+            color: #ef4444;
+            letter-spacing: -0.5px;
+        }
+
+        .temple-name-ml {
+            font-size: 18px;
+            font-weight: bold;
+            display: block;
+            margin-top: 2px;
         }
 
         .receipt-title {
@@ -55,8 +69,15 @@
 <body>
     <div class="receipt-box">
         <div class="header">
-            <div class="receipt-title">VAZHIPADU RECEIPT</div>
-            <div>Temple Management System</div>
+            <div class="temple-name-ml">{{ $temple->name_ml }}</div>
+            <div class="temple-name">{{ $temple->name }}</div>
+            <div
+                style="font-size: 10px; margin-top: 10px; font-weight: bold; color: #ef4444; text-transform: uppercase; letter-spacing: 2px;">
+                {{ $template->name ?? 'VAZHIPADU RECEIPT' }}
+            </div>
+            @if($template && $template->header_content)
+                <div style="font-size: 9px; color: #666; margin-top: 5px;">{!! nl2br(e($template->header_content)) !!}</div>
+            @endif
         </div>
 
         <table class="details">
@@ -98,8 +119,12 @@
         </div>
 
         <div class="footer">
-            <p>അടിയന്തിരമായി വഴിപാട് കഴിക്കുന്നതാണ്.</p>
-            <p>This is a computer-generated receipt.</p>
+            @if($template && $template->footer_content)
+                <p>{!! nl2br(e($template->footer_content)) !!}</p>
+            @else
+                <p>അടിയന്തിരമായി വഴിപാട് കഴിക്കുന്നതാണ്.</p>
+            @endif
+            <p style="font-size: 8px; opacity: 0.5; margin-top: 10px;">GENERATED VIA TEMPLE ERP PROTOCOL v1.0</p>
         </div>
     </div>
 </body>

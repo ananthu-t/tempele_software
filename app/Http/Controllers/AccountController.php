@@ -30,4 +30,9 @@ class AccountController extends Controller
 
         return redirect()->back()->with('success', 'Account created.');
     }
+
+    public function list()
+    {
+        return response()->json(Account::all());
+    }
 }

@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { PageProps, Devotee } from '@/types';
-import { Search, User, Zap, Printer, CheckCircle2, AlertCircle, X, ChevronDown, Loader2, RefreshCw } from 'lucide-react';
+import { Search, User, Zap, Printer, CheckCircle2, AlertCircle, X, ChevronDown, Loader2, RefreshCw, History } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { debounce } from 'lodash';
 import axios from 'axios';
@@ -163,6 +163,12 @@ export default function Index({ auth, vazhipadus, deities, nakshatras, accounts 
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Specialized Fast Entry</p>
                         </div>
                     </div>
+                    <Link
+                        href={route('counter.history')}
+                        className="bg-white border border-slate-100 px-6 py-4 rounded-2xl font-black text-[10px] text-slate-400 hover:text-slate-900 hover:border-slate-300 transition-all flex items-center gap-3 uppercase tracking-widest shadow-sm"
+                    >
+                        <History size={16} /> View Audit History
+                    </Link>
                 </div>
             }
         >

@@ -17,8 +17,22 @@
         .header {
             text-align: center;
             border-bottom: 2px solid #f97316;
-            padding-bottom: 10px;
+            padding-bottom: 15px;
             margin-bottom: 20px;
+        }
+
+        .temple-name {
+            font-size: 20px;
+            font-weight: 900;
+            color: #f97316;
+            letter-spacing: -0.5px;
+        }
+
+        .temple-name-ml {
+            font-size: 18px;
+            font-weight: bold;
+            display: block;
+            margin-top: 2px;
         }
 
         .receipt-title {
@@ -60,8 +74,15 @@
     <div class="receipt-box">
         <div class="watermark">TEMPLE ERP</div>
         <div class="header">
-            <div class="receipt-title">DONATION RECEIPT</div>
-            <div>Temple Management System</div>
+            <div class="temple-name-ml">{{ $temple->name_ml }}</div>
+            <div class="temple-name">{{ $temple->name }}</div>
+            <div
+                style="font-size: 10px; margin-top: 10px; font-weight: bold; color: #f97316; text-transform: uppercase; letter-spacing: 2px;">
+                {{ $template->name ?? 'DONATION RECEIPT' }}
+            </div>
+            @if($template && $template->header_content)
+                <div style="font-size: 9px; color: #666; margin-top: 5px;">{!! nl2br(e($template->header_content)) !!}</div>
+            @endif
         </div>
 
         <table class="details">
@@ -90,8 +111,12 @@
         </table>
 
         <div class="footer">
-            <p>Thank you for your generous contribution.</p>
-            <p>This is a computer-generated receipt.</p>
+            @if($template && $template->footer_content)
+                <p>{!! nl2br(e($template->footer_content)) !!}</p>
+            @else
+                <p>Thank you for your generous contribution.</p>
+            @endif
+            <p style="font-size: 8px; opacity: 0.5; margin-top: 10px;">GENERATED VIA TEMPLE ERP PROTOCOL v1.0</p>
         </div>
     </div>
 </body>

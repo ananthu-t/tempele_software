@@ -44,6 +44,10 @@ use App\Http\Controllers\ReceiptDataController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\ReminderController;
+use App\Http\Controllers\QuickSaleController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -64,6 +68,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Booking & Counter (Counter Staff / Admin)
     Route::middleware('can:create booking')->group(function () {
         Route::get('counter', [CounterController::class, 'index'])->name('counter.index');
+        Route::get('counter/history', [CounterController::class, 'history'])->name('counter.history');
         Route::get('api/devotees/search', [CounterController::class, 'searchDevotees'])->name('api.devotees.search');
         Route::resource('bookings', BookingController::class);
         Route::resource('devotees', DevoteeController::class);
@@ -93,9 +98,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Inventory
     Route::middleware('can:manage inventory')->group(function () {
-        Route::resource('inventory', InventoryController::class);
+        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::post('inventory', [InventoryController::class, 'store'])->name('inventory.store');
         Route::post('inventory/{item}/stock', [InventoryController::class, 'updateStock'])->name('inventory.stock');
-        Route::post('inventory/{item}/purchase', [InventoryController::class, 'purchase'])->name('inventory.purchase');
+        Route::get('purchases', [PurchaseController::class, 'index'])->name('purchases.index');
+        Route::post('purchases', [PurchaseController::class, 'store'])->name('purchases.store');
     });
 
     // Assets
@@ -123,7 +130,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('taluks', TalukController::class);
         Route::resource('panchayats', PanchayatController::class);
         Route::resource('fiscal-years', FiscalYearController::class);
-        Route::get('temple-settings', [TempleController::class, 'index'])->name('temple.settings');
+        Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::resource('receipt-templates', ReceiptTemplateController::class)->except(['create', 'edit', 'show']);
 
         Route::middleware('can:audit records')->group(function () {
             Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
@@ -136,6 +145,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('vazhipadu-categories', VazhipaduCategoryController::class);
         Route::resource('vazhipadu-rates', VazhipaduRateController::class);
         Route::resource('receipt-templates', ReceiptTemplateController::class);
+    });
+
+    // Reminders & Quick Commerce
+    Route::middleware(['can:manage inventory', 'can:manage bookings'])->group(function () {
+        Route::get('/api/accounts', [AccountController::class, 'list'])->name('api.accounts.list');
+        Route::get('/api/reminders', [ReminderController::class, 'getReminders'])->name('api.reminders');
+        Route::post('/api/reminders/book/{pooja}', [ReminderController::class, 'book'])->name('api.reminders.book');
+
+        Route::get('/api/quick-sale/search', [QuickSaleController::class, 'search'])->name('api.quick-sale.search');
+        Route::post('/api/quick-sale', [QuickSaleController::class, 'store'])->name('api.quick-sale.store');
     });
 
     // Exports
